@@ -78,3 +78,24 @@ def compute_thd(signal: np.ndarray, sampling_rate: int = 1000, nominal_freq: flo
 
     thd_percentage = (np.sqrt(harmonics_squared) / fundamental_mag) * 100.0
     return float(thd_percentage)
+
+
+def extract_features(signal: np.ndarray, sampling_rate: int = 1000, nominal_freq: float = 50.0) -> Dict[str, float]:
+    """
+    Extracts a comprehensive dictionary of statistical and electrical features.
+    """
+    rms = compute_rms(signal)
+    peak = compute_peak(signal)
+    crest = compute_crest_factor(signal)
+    thd = compute_thd(signal, sampling_rate, nominal_freq)
+    mean = float(np.mean(signal))
+    std = float(np.std(signal))
+    
+    return {
+        "rms": round(rms, 4),
+        "peak": round(peak, 4),
+        "crest_factor": round(crest, 4),
+        "thd": round(thd, 2),
+        "mean": round(mean, 4),
+        "std": round(std, 4),
+    }

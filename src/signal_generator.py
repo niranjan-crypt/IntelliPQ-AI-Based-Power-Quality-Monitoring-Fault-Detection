@@ -22,3 +22,8 @@ class SignalGenerator:
         self.base_freq = base_freq
         self.num_samples = int(sampling_rate * duration)
         self.t = np.linspace(0, duration, self.num_samples, endpoint=False)
+
+    def generate_pure_sine(self, amplitude: float = 1.0, freq: float = None, phase: float = 0.0) -> np.ndarray:
+        """Generates an ideal sinusoidal voltage signal."""
+        f = freq if freq is not None else self.base_freq
+        return amplitude * np.sin(2 * np.pi * f * self.t + phase)

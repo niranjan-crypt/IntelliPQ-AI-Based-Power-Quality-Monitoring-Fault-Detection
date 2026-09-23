@@ -27,3 +27,19 @@ class SignalGenerator:
         """Generates an ideal sinusoidal voltage signal."""
         f = freq if freq is not None else self.base_freq
         return amplitude * np.sin(2 * np.pi * f * self.t + phase)
+
+    def generate_normal(self, amplitude: float = 1.0, freq: float = 50.0, noise_snr: float = None) -> np.ndarray:
+        """Generates normal operational voltage signal."""
+        signal = amplitude * np.sin(2 * np.pi * freq * self.t)
+        if noise_snr is not None:
+            signal = self._add_noise(signal, noise_snr)
+        return signal
+
+    def _add_noise(self, signal: np.ndarray, snr_db: float) -> np.ndarray:
+        """Injects Additive White Gaussian Noise (AWGN) at specified SNR (dB)."""
+        signal_power = np.mean(signal ** 2)
+        if signal_power == 0:
+            return signal
+        noise_power = signal_power / (10 ** (snr_db / 10))
+        noise = np.random.normal(0, np.sqrt(noise_power), len(signal))
+        return signal + noise

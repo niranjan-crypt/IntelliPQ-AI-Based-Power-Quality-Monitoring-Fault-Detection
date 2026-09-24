@@ -71,6 +71,22 @@ class SignalGenerator:
             signal = self._add_noise(signal, noise_snr)
         return signal
 
+    def generate_harmonic_distortion(
+        self,
+        amplitude: float = 1.0,
+        freq: float = 50.0,
+        harmonic_orders: tuple = (3, 5),
+        harmonic_amplitudes: tuple = (0.2, 0.1),
+        noise_snr: float = None
+    ) -> np.ndarray:
+        """Generates signal with harmonic distortion (THD >= 5%)."""
+        signal = amplitude * np.sin(2 * np.pi * freq * self.t)
+        for order, h_amp in zip(harmonic_orders, harmonic_amplitudes):
+            signal += h_amp * np.sin(2 * np.pi * order * freq * self.t)
+        if noise_snr is not None:
+            signal = self._add_noise(signal, noise_snr)
+        return signal
+
     def _add_noise(self, signal: np.ndarray, snr_db: float) -> np.ndarray:
         """Injects Additive White Gaussian Noise (AWGN) at specified SNR (dB)."""
         signal_power = np.mean(signal ** 2)

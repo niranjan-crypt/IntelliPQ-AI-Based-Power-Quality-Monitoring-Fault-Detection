@@ -35,6 +35,24 @@ class SignalGenerator:
             signal = self._add_noise(signal, noise_snr)
         return signal
 
+    def generate_voltage_sag(
+        self,
+        amplitude: float = 0.7,
+        freq: float = 50.0,
+        start_time: float = 0.0,
+        end_time: float = 1.0,
+        noise_snr: float = None
+    ) -> np.ndarray:
+        """Generates voltage sag signal (0.1 pu to 0.89 pu)."""
+        nominal = np.sin(2 * np.pi * freq * self.t)
+        envelope = np.ones_like(self.t)
+        mask = (self.t >= start_time) & (self.t <= end_time)
+        envelope[mask] = amplitude
+        signal = nominal * envelope
+        if noise_snr is not None:
+            signal = self._add_noise(signal, noise_snr)
+        return signal
+
     def _add_noise(self, signal: np.ndarray, snr_db: float) -> np.ndarray:
         """Injects Additive White Gaussian Noise (AWGN) at specified SNR (dB)."""
         signal_power = np.mean(signal ** 2)

@@ -13,3 +13,21 @@ FAULT_DICT = {
     2: "Voltage Swell",
     3: "Harmonic Distortion",
 }
+
+
+def build_cnn_lstm_model(input_shape: Tuple[int, int] = (1000, 1), num_classes: int = 4):
+    """Constructs a hybrid 1D-CNN + Bidirectional LSTM model for power disturbance classification."""
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Conv1D, MaxPooling1D, BatchNormalization
+
+    model = Sequential([
+        # Stage 1: Feature Extraction (CNN)
+        Conv1D(filters=32, kernel_size=7, activation="relu", padding="same", input_shape=input_shape),
+        BatchNormalization(),
+        MaxPooling1D(pool_size=2),
+
+        Conv1D(filters=64, kernel_size=5, activation="relu", padding="same"),
+        BatchNormalization(),
+        MaxPooling1D(pool_size=2),
+    ])
+    return model

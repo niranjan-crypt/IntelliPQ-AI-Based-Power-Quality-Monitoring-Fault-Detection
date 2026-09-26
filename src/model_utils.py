@@ -59,3 +59,37 @@ def build_cnn_lstm_model(input_shape: Tuple[int, int] = (1000, 1), num_classes: 
         metrics=["accuracy"],
     )
     return model
+
+
+def load_pq_model(model_path: str = "pq_model.h5"):
+    """Safely loads the Keras model if available, returns None otherwise."""
+    try:
+        from tensorflow.keras.models import load_model
+        return load_model(model_path)
+    except Exception:
+        return None
+
+
+def predict_waveform(model, signal: np.ndarray, timesteps: int = 1000) -> Optional[Tuple[str, float, np.ndarray]]:
+    """
+    Runs model inference on raw 1D time-series voltage signal.
+    
+    Returns:
+        (predicted_class_name, confidence_percentage, all_probabilities)
+    """
+    if model is None:
+        return None
+
+    # Reshape signal to (1, timesteps, 1)
+    if len(signal) != timesteps:
+        # Interpolate or slice if needed
+        indices = np.linspace(0, len(signal) - 1, timesteps)
+        signal = np.interp(indices, np.arange(len(signal)), signal)
+
+    signal_input = signal.reshape(1, timesteps, 1)
+    probabilities = model.predict(signal_input, verbose=0)[0]
+    predicted_idx = int(np.argmax(probabilities))
+    confidence = float(probabilities[predicted_idx] * 100.0)
+    class_name = FAULT_DICT.get(predicted_idx, "Unknown")
+
+    return class_name, confidence, probabilities

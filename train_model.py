@@ -30,3 +30,26 @@ def train(samples_per_class: int = 600):
     X_test = np.expand_dims(X_test, axis=-1)
 
     print(f"[+] Train set: {X_train.shape[0]} samples | Test set: {X_test.shape[0]} samples")
+
+    # 3. Build Model
+    print("[*] Building 1D-CNN + Bidirectional LSTM architecture...")
+    model = build_cnn_lstm_model(input_shape=(1000, 1), num_classes=4)
+    model.summary()
+
+    # 4. Train
+    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+
+    callbacks = [
+        EarlyStopping(monitor="val_loss", patience=4, restore_best_weights=True, verbose=1),
+        ModelCheckpoint("pq_model.h5", monitor="val_accuracy", save_best_only=True, verbose=1),
+    ]
+
+    model.fit(
+        X_train,
+        y_train,
+        epochs=10,
+        batch_size=32,
+        validation_data=(X_test, y_test),
+        callbacks=callbacks,
+        verbose=1,
+    )

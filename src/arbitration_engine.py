@@ -24,6 +24,10 @@ class ArbitrationEngine:
         swell_limit: float = 1.10,
         thd_limit: float = 5.0,
     ) -> Dict[str, Any]:
+        """
+        Executes neuro-symbolic arbitration.
+        """
+        # When AI model is unavailable, gracefully fallback
         if not ai_result or ai_result == "N/A":
             return {
                 "final_decision": rule_result,
@@ -31,6 +35,7 @@ class ArbitrationEngine:
                 "confidence_level": 80.0,
                 "disagreement": False,
                 "evidence_table": [],
+                "actionable_remedy": cls._get_remedy(rule_result),
             }
 
         # 1. Consensus
@@ -41,6 +46,7 @@ class ArbitrationEngine:
                 "confidence_level": max(ai_confidence, 85.0),
                 "disagreement": False,
                 "evidence_table": [],
+                "actionable_remedy": cls._get_remedy(rule_result),
             }
 
         # 2. Critical Safety Threshold Overrides (Physical limits take priority)
@@ -95,6 +101,7 @@ class ArbitrationEngine:
             "confidence_level": conf,
             "disagreement": True,
             "evidence_table": evidence_table,
+            "actionable_remedy": cls._get_remedy(final_decision),
         }
 
     @staticmethod
@@ -137,3 +144,30 @@ class ArbitrationEngine:
             },
         ]
         return rows
+
+    @staticmethod
+    def _get_remedy(diagnosis: str) -> Dict[str, str]:
+        if diagnosis == "Normal":
+            return {
+                "status": "Nominal",
+                "action": "System operating within standard tolerances. Continue continuous monitoring.",
+                "color": "green",
+            }
+        elif diagnosis == "Harmonic Distortion":
+            return {
+                "status": "Critical",
+                "action": "Locate non-linear load sources (VFDs, inverters). Inspect passive/active harmonic filters. Check capacitor banks for resonance.",
+                "color": "red",
+            }
+        elif diagnosis == "Voltage Sag":
+            return {
+                "status": "Warning",
+                "action": "Investigate heavy motor starting, upstream grid switching, or line faults. Check automatic voltage regulators (AVR) and UPS systems.",
+                "color": "yellow",
+            }
+        else:  # Voltage Swell
+            return {
+                "status": "Warning",
+                "action": "Investigate abrupt heavy load de-energization or single phase-to-ground faults. De-energize oversized capacitor banks to prevent insulation breakdown.",
+                "color": "yellow",
+            }

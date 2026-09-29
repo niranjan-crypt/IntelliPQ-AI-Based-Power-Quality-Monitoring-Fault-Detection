@@ -43,4 +43,28 @@ class ArbitrationEngine:
                 "evidence_table": [],
             }
 
-        return {"final_decision": rule_result, "decision_method": "Fallback"}
+        # 2. Critical Safety Threshold Overrides (Physical limits take priority)
+        if thd >= thd_limit * 1.5:
+            final_decision = "Harmonic Distortion"
+            method = "Critical Threshold Override (THD Breach)"
+            conf = 95.0
+        elif amplitude < sag_limit * 0.85:
+            final_decision = "Voltage Sag"
+            method = "Critical Threshold Override (Severe Sag)"
+            conf = 95.0
+        elif amplitude > swell_limit * 1.15:
+            final_decision = "Voltage Swell"
+            method = "Critical Threshold Override (Severe Swell)"
+            conf = 95.0
+        else:
+            final_decision = rule_result
+            method = "Rule-Based Fallback"
+            conf = 70.0
+
+        return {
+            "final_decision": final_decision,
+            "decision_method": method,
+            "confidence_level": conf,
+            "disagreement": True,
+            "evidence_table": [],
+        }

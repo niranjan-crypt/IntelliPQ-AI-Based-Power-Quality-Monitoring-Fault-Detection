@@ -164,3 +164,59 @@ st.sidebar.info("""
 • **Voltage Swell:** > 1.1 pu  
 • **Harmonic Distortion:** THD ≥ 5%
 """)
+
+# ==============================
+# SIGNAL PROCESSING (DSP)
+# ==============================
+
+rms = float(np.sqrt(np.mean(signal**2)))
+peak = float(np.max(np.abs(signal)))
+mean = float(np.mean(signal))
+std = float(np.std(signal))
+crest_factor = (peak / rms) if rms > 1e-6 else 0.0
+
+# THD Calculation using FFT
+fft_vals = np.abs(fft(signal))
+half_n = len(fft_vals) // 2
+fft_vals = fft_vals[:half_n]
+
+fundamental_idx = int(frequency * timesteps / (timesteps / t[-1])) if input_mode == "Interactive Waveform Synthesizer" else 50
+if 0 < fundamental_idx < len(fft_vals):
+    fundamental = fft_vals[fundamental_idx]
+else:
+    fundamental = fft_vals[1]
+
+harmonics_squared = sum(fft_vals[i]**2 for i in range(2, min(20, len(fft_vals))) if i != fundamental_idx)
+harmonics = np.sqrt(harmonics_squared)
+thd = float((harmonics / fundamental * 100)) if fundamental > 1e-10 else 0.0
+
+# ==============================
+# DISPLAY WAVEFORM & FFT SPECTRUM
+# ==============================
+
+tab_wave, tab_fft = st.tabs(["📈 Voltage Waveform", "📊 Frequency Spectrum (FFT)"])
+
+with tab_wave:
+    fig, ax = plt.subplots(figsize=(12, 3.8))
+    ax.plot(t, signal, linewidth=2, color='#1f77b4', label="Measured Voltage (pu)")
+    ax.axhline(y=1.1, color='orange', linestyle='--', linewidth=1, alpha=0.7, label="Swell Limit (1.10 pu)")
+    ax.axhline(y=0.9, color='red', linestyle='--', linewidth=1, alpha=0.7, label="Sag Limit (0.90 pu)")
+    ax.axhline(y=0, color='gray', linestyle='-', linewidth=0.6, alpha=0.4)
+    ax.set_xlabel("Time (seconds)")
+    ax.set_ylabel("Voltage (pu)")
+    ax.set_title("Real-Time Monitored Voltage Signal")
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim([-2.0, 2.0])
+    ax.legend(loc="upper right", framealpha=0.8)
+    st.pyplot(fig)
+
+with tab_fft:
+    fig_fft, ax_fft = plt.subplots(figsize=(12, 3.8))
+    freq_axis = np.linspace(0, 500, half_n)
+    norm_fft = (fft_vals * 2.0) / len(signal)
+    ax_fft.bar(freq_axis[:150], norm_fft[:150], width=2.5, color='#2ca02c', alpha=0.85)
+    ax_fft.set_xlabel("Frequency (Hz)")
+    ax_fft.set_ylabel("Amplitude (pu)")
+    ax_fft.set_title("Harmonic Spectrum Analysis (0 - 300 Hz)")
+    ax_fft.grid(True, alpha=0.3)
+    st.pyplot(fig_fft)

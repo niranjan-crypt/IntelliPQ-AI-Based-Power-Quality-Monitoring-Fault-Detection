@@ -1,0 +1,38 @@
+# GitHub Actions CI Workflow for IntelliPQ
+# To activate: move this file to .github/workflows/ci.yml in GitHub web UI or grant 'workflow' scope to your PAT.
+
+name: IntelliPQ CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Generate Sample Benchmark Data
+      run: |
+        python scripts/generate_sample_data.py
+
+    - name: Run Test Suite with Pytest
+      run: |
+        pytest tests/ -v

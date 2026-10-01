@@ -220,3 +220,213 @@ with tab_fft:
     ax_fft.set_title("Harmonic Spectrum Analysis (0 - 300 Hz)")
     ax_fft.grid(True, alpha=0.3)
     st.pyplot(fig_fft)
+
+# ==============================
+# SIGNAL PARAMETERS METRICS
+# ==============================
+
+st.subheader("📊 Signal Extraction Parameters")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Amplitude (Peak)", f"{peak:.3f} pu")
+col2.metric("RMS Voltage", f"{rms:.3f} pu")
+col3.metric("Total Harmonic Distortion", f"{thd:.2f}%", delta="Normal" if thd < 5.0 else "High THD", delta_color="inverse")
+col4.metric("Crest Factor", f"{crest_factor:.3f}")
+
+col5, col6, col7, col8 = st.columns(4)
+col5.metric("Fundamental Freq", f"{frequency:.1f} Hz")
+col6.metric("Signal Mean", f"{mean:.4f}")
+col7.metric("Standard Deviation", f"{std:.4f}")
+col8.metric("Harmonic Input", f"{harmonic:.2f} pu")
+
+st.markdown("---")
+
+# ==============================
+# RULE-BASED DETECTION
+# ==============================
+
+st.subheader("🔍 Rule-Based Detection Engine (IEEE 1159 & IEEE 519)")
+
+SAG_LIMIT = 0.90
+SWELL_LIMIT = 1.10
+THD_LIMIT = 5.0
+
+amp_measure = amplitude if input_mode == "Interactive Waveform Synthesizer" else peak
+
+if thd >= THD_LIMIT:
+    rule_result = "Harmonic Distortion"
+    trigger_reason = f"THD ({thd:.2f}%) exceeds IEEE 519 threshold ({THD_LIMIT}%)"
+    status_icon = "🔴"
+elif amp_measure < SAG_LIMIT:
+    rule_result = "Voltage Sag"
+    trigger_reason = f"Voltage ({amp_measure:.3f} pu) fell below IEEE 1159 sag threshold ({SAG_LIMIT} pu)"
+    status_icon = "🟡"
+elif amp_measure > SWELL_LIMIT:
+    rule_result = "Voltage Swell"
+    trigger_reason = f"Voltage ({amp_measure:.3f} pu) exceeded IEEE 1159 swell threshold ({SWELL_LIMIT} pu)"
+    status_icon = "🟡"
+else:
+    rule_result = "Normal"
+    trigger_reason = "All electrical parameters within nominal IEEE operational limits"
+    status_icon = "🟢"
+
+if rule_result == "Normal":
+    st.success(f"{status_icon} **Rule-Based Result: {rule_result}** — *{trigger_reason}*")
+elif rule_result == "Harmonic Distortion":
+    st.error(f"{status_icon} **Rule-Based Result: {rule_result}** — *{trigger_reason}*")
+else:
+    st.warning(f"{status_icon} **Rule-Based Result: {rule_result}** — *{trigger_reason}*")
+
+with st.expander("📊 View IEEE Detection Rules & Verification Matrix"):
+    st.markdown("#### IEEE Compliance Matrix")
+    st.table({
+        "Parameter": ["Voltage Amplitude", "THD (IEEE 519)", "Nominal Frequency"],
+        "Current Measured": [f"{amp_measure:.3f} pu", f"{thd:.2f}%", f"{frequency:.1f} Hz"],
+        "Standard Bound": [f"{SAG_LIMIT} - {SWELL_LIMIT} pu", f"< {THD_LIMIT}%", "49.5 - 50.5 Hz"],
+        "Compliance Status": [
+            "✅ Compliant" if SAG_LIMIT <= amp_measure <= SWELL_LIMIT else "❌ Non-Compliant",
+            "✅ Compliant" if thd < THD_LIMIT else "❌ Non-Compliant",
+            "✅ Compliant" if 49.5 <= frequency <= 50.5 else "⚠️ Slight Deviation"
+        ]
+    })
+    st.caption(f"**Trigger Reason:** {trigger_reason}")
+
+# ==============================
+# AI DETECTION (CNN + LSTM)
+# ==============================
+
+st.subheader("🤖 AI-Based Classification (1D-CNN + Bidirectional LSTM)")
+
+ai_result = "N/A"
+ai_conf = 0.0
+prediction = np.zeros((1, 4))
+fault_dict = {0: "Normal", 1: "Voltage Sag", 2: "Voltage Swell", 3: "Harmonic Distortion"}
+
+if model is not None:
+    signal_input = signal.reshape(1, timesteps, 1)
+    prediction = model.predict(signal_input, verbose=0)
+    predicted_class = int(np.argmax(prediction[0]))
+    ai_result = fault_dict.get(predicted_class, "Unknown")
+    ai_conf = float(prediction[0][predicted_class] * 100.0)
+
+    if ai_result == "Normal":
+        st.success(f"🟢 **AI Classification: {ai_result}** (Confidence: {ai_conf:.1f}%)")
+    elif ai_result == "Harmonic Distortion":
+        st.error(f"🔴 **AI Classification: {ai_result}** (Confidence: {ai_conf:.1f}%)")
+    else:
+        st.warning(f"🟡 **AI Classification: {ai_result}** (Confidence: {ai_conf:.1f}%)")
+
+    with st.expander("🎯 View AI Neural Network Confidence Breakdown"):
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Normal", f"{prediction[0][0]*100:.1f}%")
+        c2.metric("Voltage Sag", f"{prediction[0][1]*100:.1f}%")
+        c3.metric("Voltage Swell", f"{prediction[0][2]*100:.1f}%")
+        c4.metric("Harmonic Dist.", f"{prediction[0][3]*100:.1f}%")
+
+        fig2, ax2 = plt.subplots(figsize=(10, 2.8))
+        classes = list(fault_dict.values())
+        probabilities = prediction[0] * 100
+        colors = ['#2ecc71' if i == predicted_class else '#bdc3c7' for i in range(4)]
+        ax2.barh(classes, probabilities, color=colors)
+        ax2.set_xlabel('Model Confidence (%)')
+        ax2.set_xlim([0, 100])
+        for i, v in enumerate(probabilities):
+            ax2.text(v + 1.5, i, f'{v:.1f}%', va='center', fontweight='bold' if i == predicted_class else 'normal')
+        st.pyplot(fig2)
+else:
+    st.info("ℹ️ AI Model (`pq_model.h5`) not found in workspace.")
+    st.caption("💡 **Tip:** Run `python train_model.py` in your terminal to train and export the 1D-CNN + Bi-LSTM neural network. The rule-based engine and arbitration fallback are currently active.")
+
+# ==============================
+# INTELLIGENT FAULT RESOLUTION
+# ==============================
+
+st.subheader("🧠 Intelligent Neuro-Symbolic Arbitration System")
+
+if model is not None and ai_result != "N/A":
+    if rule_result == ai_result:
+        final_decision = rule_result
+        decision_method = "Consensus (Both Engines Agree)"
+        confidence_level = max(ai_conf, 92.0)
+    else:
+        if ai_conf > 90.0:
+            final_decision = ai_result
+            decision_method = "AI High Confidence (>90%)"
+            confidence_level = ai_conf
+        elif thd >= THD_LIMIT * 1.5:
+            final_decision = "Harmonic Distortion"
+            decision_method = "Critical Safety Override (Severe THD)"
+            confidence_level = 95.0
+        elif amp_measure < SAG_LIMIT * 0.85:
+            final_decision = "Voltage Sag"
+            decision_method = "Critical Safety Override (Severe Voltage Sag)"
+            confidence_level = 95.0
+        elif amp_measure > SWELL_LIMIT * 1.15:
+            final_decision = "Voltage Swell"
+            decision_method = "Critical Safety Override (Severe Voltage Swell)"
+            confidence_level = 95.0
+        elif ai_conf > 70.0:
+            verification_passed = False
+            if ai_result == "Harmonic Distortion" and (thd >= THD_LIMIT * 0.8 or harmonic > 0.15):
+                verification_passed = True
+            elif ai_result == "Voltage Sag" and (amp_measure < SAG_LIMIT * 1.05 or rms < 0.9):
+                verification_passed = True
+            elif ai_result == "Voltage Swell" and (amp_measure > SWELL_LIMIT * 0.95 or rms > 1.1):
+                verification_passed = True
+            elif ai_result == "Normal" and (SAG_LIMIT * 0.95 <= amp_measure <= SWELL_LIMIT * 1.05 and thd < THD_LIMIT * 0.8):
+                verification_passed = True
+
+            if verification_passed:
+                final_decision = ai_result
+                decision_method = "AI Verified by Physical Parameters"
+                confidence_level = ai_conf
+            else:
+                final_decision = rule_result
+                decision_method = "Rule-Based (AI Not Verified by Physics)"
+                confidence_level = 75.0
+        else:
+            final_decision = rule_result
+            decision_method = "Rule-Based (Low AI Confidence <70%)"
+            confidence_level = 70.0
+
+    st.markdown("### 🎯 FINAL DIAGNOSIS")
+    if final_decision == "Normal":
+        st.success(f"## ✅ {final_decision.upper()}")
+    elif final_decision == "Harmonic Distortion":
+        st.error(f"## 🚨 {final_decision.upper()}")
+    else:
+        st.warning(f"## ⚠️ {final_decision.upper()}")
+
+    st.markdown(f"**Confidence: {confidence_level:.1f}%** • *Decision Path: {decision_method}*")
+    st.progress(float(confidence_level) / 100.0)
+
+    if rule_result != ai_result:
+        st.markdown("---")
+        st.markdown("#### 🔬 Conflict Arbitration & Evidence Analysis")
+        col_r, col_a, col_m = st.columns(3)
+        with col_r:
+            st.markdown("##### 📏 Rule-Based Result")
+            st.info(f"**{rule_result}**")
+            st.caption(f"Trigger: {trigger_reason}")
+        with col_a:
+            st.markdown("##### 🤖 AI Model Result")
+            st.info(f"**{ai_result}** (Conf: {ai_conf:.1f}%)")
+        with col_m:
+            st.markdown("##### ⚖️ Arbitration Decision")
+            st.success(f"**Selected: {final_decision}**")
+            st.caption(f"Rationale: {decision_method}")
+
+else:
+    final_decision = rule_result
+    confidence_level = 80.0
+    decision_method = "Deterministic Rule-Based Baseline"
+
+    st.markdown("### 🎯 FINAL DIAGNOSIS")
+    if final_decision == "Normal":
+        st.success(f"## ✅ {final_decision.upper()}")
+    elif final_decision == "Harmonic Distortion":
+        st.error(f"## 🚨 {final_decision.upper()}")
+    else:
+        st.warning(f"## ⚠️ {final_decision.upper()}")
+
+    st.markdown(f"**Confidence: {confidence_level:.1f}%** • *{decision_method}*")
+    st.caption(f"Trigger: {trigger_reason}")

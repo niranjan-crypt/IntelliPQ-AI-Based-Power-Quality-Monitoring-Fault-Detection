@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  intellipq:
+    build: .
+    container_name: intellipq-dashboard
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+    volumes:
+      - ./data:/app/data
